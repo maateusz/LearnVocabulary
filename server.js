@@ -3,8 +3,10 @@ var app         =   express();
 var bodyParser  =   require("body-parser");
 var router      =   express.Router();
 
+//TODO sprawdzic w czy w postach nie przekazuje argumentow a URLu
+
 var mongoose    =   require("mongoose");
-mongoose.connect('mongodataModel://localhost:27017/test');
+mongoose.connect('mongodb://localhost:27017/test');
 
 var categorySchema =   mongoose.Schema({
 						"name": String,
@@ -18,12 +20,22 @@ var dictionaryWordSchema =   mongoose.Schema({
 						"word": String,
 						"translations": [String],
 						"categories": [String]
+					});					
+var authenticationDataSchema =   mongoose.Schema({
+						"login": String,
+						"password": [String]
 					});
 var mongoCategories = mongoose.model("category", categorySchema);
 var mongoDictionaries = mongoose.model("dictionary", dictionarySchema);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({"extended" : false}));
+
+router.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
 
 router.get("/",function(req,res){
 	console.log("GET request!?!?!?");
@@ -183,10 +195,50 @@ router.route("/dictionary/category/:dict/:category")
         });
     });
 	
+router.route("/dictionary/level/:dict/:level")
+    .get(function(req,res){
+        var response = {};
+		
+		var name = req.params.dict;
+		var level = req.params.level;
+
+		var mongoDict = mongoose.model(name, dictionaryWordSchema);
+
+        mongoDict.find({"level" : level},function(err,data){
+        // Mongo command to fetch all data from collection.
+            if(err) {
+                response = {"error" : true,"message" : "error"};
+            } else {
+                response = {"error" : false,"message" : data};
+            }
+            res.json(response);
+        });
+    });
+	
+router.route("/dictionary/category/level/:dict/:category/:level")
+    .get(function(req,res){
+        var response = {};
+		
+		var name = req.params.dict;
+		var level = req.params.level;
+		var category = req.params.category;
+
+		var mongoDict = mongoose.model(name, dictionaryWordSchema);
+
+        mongoDict.find({"level" : level, "categories" : category},function(err,data){
+        // Mongo command to fetch all data from collection.
+            if(err) {
+                response = {"error" : true,"message" : "error"};
+            } else {
+                response = {"error" : false,"message" : data};
+            }
+            res.json(response);
+        });
+    });
+	
 router.route("/dictionary/word/new/:dict")
     .post(function(req, res){
-
-		var name = req.params.dict;
+	var name = req.params.dict;
 		var mongoDict = mongoose.model(name, dictionaryWordSchema);	
 		var dataModel = new mongoDict();
 		
@@ -204,7 +256,29 @@ router.route("/dictionary/word/new/:dict")
 			}
 			res.json(response);
 		});
-	});	
+	});
+	
+router.route("/users/authentication")
+    .post(function(req, res){
+		
+		var mongoDict = mongoose.model("users", authenticationDataSchema);	
+		var dataModel = new mongoDict();
+		
+		var response = {};
+		
+		dataModel.login = req.body.login;
+		dataModel.password = req.body.password;
+		
+		dataModel.save(function(err){
+			if(err){
+				response = {"error" : true, "message" : "authentication error"};
+			} else {
+				response = {"error" : false, "message" : "authentication success" };
+			}
+			res.json(response);
+		});
+	});
+		
 
 app.use('/',router);
 

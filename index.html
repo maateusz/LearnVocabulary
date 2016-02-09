@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<HTML>
+<HEAD>
+<META charset="UTF8">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<link href="http://yui.yahooapis.com/pure/0.6.0/base-min.css" rel="stylesheet">
+<link href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css" rel="stylesheet">
+<!--[if lte IE 8]>
+    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/grids-responsive-old-ie-min.css">
+<![endif]-->
+<!--[if gt IE 8]><!-->
+    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/grids-responsive-min.css">
+<!--<![endif]-->
+<link href='https://fonts.googleapis.com/css?family=Rubik:400,500italic' rel='stylesheet' type='text/css'>
+</HEAD>
+<BODY>
+<div style="text-align: center;">
+	<div style="width: auto; margin: 0 auto;">
+		<form id="selectDictionaryForm" name="selectDictionaryForm" class="pure-form" style="vertical-align: middle; margin: 100px 100px;">
+
+			<fieldset>
+			
+				<legend>Select a dictionary</legend>
+
+				<div id="dictionaries" class="pure-controls">
+				</div>
+				<div id="submitBtn" class="pure-controls">
+					<button type="submit" class="pure-button pure-button-primary">Select</button>
+				</div>
+			</fieldset>
+		</form>
+		<form id="selectOptionForm" name="selectOptionForm" class="pure-form" style="vertical-align: middle; margin: 100px 100px;">
+
+			<fieldset>
+				<legend>Legend</legend>
+
+				<div class="pure-g">
+					<div class="pure-u-1 pure-u-md-1-3">
+						<label for="category">Category:</label>
+						<select id="category" class="pure-input-1-2">
+						</select>
+					</div>
+					
+					<div class="pure-u-1 pure-u-md-1-3">
+						<label for="level">Level:</label>
+						<select id="level" class="pure-input-1-2">
+							<option value="A1">A1</option>
+							<option value="A2">A2</option>
+							<option value="B1">B1</option>
+							<option value="B2">B2</option>
+							<option value="C1">C1</option>
+							<option value="C2">C2</option>
+						</select>
+					</div>
+
+					<div class="pure-u-1 pure-u-md-1-3">
+						<label for="option">Option:</label>
+						<select id="option" class="pure-input-1-2">
+							<option value="list">word list</option>
+							<option value="test">learn words</option>
+						</select>
+					</div>
+				</div>
+
+				<button type="submit" class="pure-button pure-button-primary" style="margin: 45px 0; width: auto;">Start</button>
+				<button id="changeDictionary" class="pure-button pure-button-primary" style="margin: 45px 0; width: auto;" onclick="return false;">Change dictionary</button>
+			</fieldset>
+		</form>
+		<div id="result" style="vertical-align: middle; margin: 100px 100px;">
+			<table id="wordList" class="pure-table" style="display: inline;">
+				<thead>
+					<tr>
+						<th style="text-align: center;">#</th>
+						<th style="text-align: center;">Word</th>
+						<th style="text-align: center;">Translations</th>
+					</tr>
+				</thead>
+			
+				<tbody>
+					
+				</tbody>
+			</table>
+			<div style="margin-top: 25px;"><button id="backToOption" class="pure-button pure-button-primary">Back</button></div>
+		</div>
+		
+		<form id="learnVocabulary" class="pure-form pure-form-aligned" style="vertical-align: middle; margin: 100px 100px;">
+			<fieldset>
+				<div class="pure-control-group">
+					<label for="word">Username</label>
+					<input id="word" type="text" placeholder="translation">
+					<button id="nextWordBtn" type="submit" class="pure-button pure-button-primary" style="margin: 45px 0; width: auto;">Next</button>
+				</div>
+				<p>Correct: <span id="numberOfCorrect">0</span></p>
+				<p>Incorrect: <span id="numberOfIncorrect">0</span></p>
+				<p>Percentage: <span id="percentage">0</span></p>
+				<div class="pure-control-group">
+					<button id="backToMenuBtn" class="pure-button pure-button-primary" style="margin: 45px 0; width: auto;">Back to menu</button>
+				</div>
+			</fieldset>
+		</form>		
+	</div>
+</div>
+</BODY>
+</HTML>
+<script type="text/javascript">
+/*
+function httpGetAsync(theUrl, callback)
+{
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.onreadystatechange = function() { 
+        if (xmlHttp.readyState == 4 && xmlHttp.status == 200)
+            callback(xmlHttp.responseText);
+    }
+    xmlHttp.open("GET", theUrl, true); // true for asynchronous 
+    xmlHttp.send(null);
+}
+*/
+var wordsData;
+var index = 0;
+var correct = 0;
+var incorrect = 0;
+var percentage = 0;
+
+var getJSON = function (url, successHandler, errorHandler)
+{
+	var xhr = typeof XMLHttpRequest != 'undefined'
+    ? new XMLHttpRequest()
+    : new ActiveXObject('Microsoft.XMLHTTP');
+	xhr.open('get', url, true);
+	xhr.onreadystatechange = function() {
+		var status;
+		var data;
+		//https://xhr.spec.whatwg.org/#dom-xmlhttprequest-readystate
+		if (xhr.readyState == 4) { // `DONE`
+			status = xhr.status;
+			if (status == 200) {
+				data = JSON.parse(xhr.responseText);
+				successHandler && successHandler(data);
+			} else {
+				errorHandler && errorHandler(status);
+			}
+		}
+	};
+	xhr.send();
+}
+
+var getDictionaries = function(data){
+	$('#dictionaries').html("");
+	for(var k in data.message)
+	{
+		console.log(k, data.message[k]);
+		var name = data.message[k].name;
+		var value = data.message[k].from + " - " + data.message[k].to;
+		var x = '<label for="cb" class="pure-checkbox"><input name="cb" type="radio" value="' + name + '">';
+		x += value;
+		x += '</label>';
+		$('#dictionaries').append(x);
+	}
+};
+
+var getCategories = function(data){
+	//alert(data.error);
+	$('#category').html("");
+	for(var k in data.message)
+	{
+		console.log(k, data.message[k]);
+		var value = data.message[k].name;
+		var x = '<option value="' + value + '">' + value + '</option>';
+		$('#category').append(x);
+	}
+};
+
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+var generateTest = function(data){
+
+	wordsData = data;
+	if(wordsData.message.length > 0){
+		var word = data.message[0].word;
+		var translations = data.message[0].translations;
+		var x = '<label for="' + word + '">' + word + '</label><input id="' + word + '" type="text" placeholder="translation"><button id="nextWordBtn" type="submit" class="pure-button pure-button-primary" style="margin: 45px 0; width: auto;">Next</button>';
+		$('#learnVocabulary .pure-control-group label').text(word);
+		$('#learnVocabulary .pure-control-group input').text("");
+		$('#learnVocabulary').show();
+		$('#selectOptionForm').hide();
+	}
+	
+	
+};
+
+var showWordList = function(data){
+
+	$('#wordList tbody').html("");
+	for(var k in data.message)
+	{
+		
+		console.log(k, data.message[k]);
+		var word = data.message[k].word;
+		var translations = data.message[k].translations;
+		var x = '<tr><td>' + k + '</td><td>' + word + '</td><td>' + translations + '</td></tr>';
+		$('#wordList tbody').append(x);
+	}
+	$('#result').show();
+	$('#selectOptionForm').hide();
+}
+	
+
+
+var errorHandler = function(status){
+	alert("error");
+};
+
+var funC = function callbackFun()
+{
+	console.log( "callback" );
+};
+
+function getSelectVal(form, name) {
+    var val;
+    // get list of radio buttons with specified name
+    var options = form.elements[name];
+    
+    // loop through list of radio buttons
+    for (var i=0, len=radios.length; i<len; i++) {
+        if ( radios[i].checked ) { // radio checked?
+            val = radios[i].value; // if so, hold its value in val
+            break; // and break out of for loop
+        }
+    }
+    return val; // return value of checked radio or undefined if none checked
+}
+
+function getRadioVal(form, name) {
+    var val;
+    // get list of radio buttons with specified name
+    var radios = form.elements[name];
+    
+    // loop through list of radio buttons
+    for (var i=0, len=radios.length; i<len; i++) {
+        if ( radios[i].checked ) { // radio checked?
+            val = radios[i].value; // if so, hold its value in val
+            break; // and break out of for loop
+        }
+    }
+    return val; // return value of checked radio or undefined if none checked
+}
+
+$( document ).ready(function() {
+    console.log( "ready!");
+	$('#result').hide();
+	$('#learnVocabulary').hide();
+	$('#selectOptionForm').hide();
+	$('#selectDictionaryForm').submit(function( event ) {
+		var val = getRadioVal(this, 'cb');
+		// display value obtained		
+		localStorage.setItem('dictionary', val);	
+		getJSON("http://localhost:3000/categories", getCategories, errorHandler);
+		$('#selectOptionForm').show();
+		$('#selectDictionaryForm').hide();
+		//window.location.href = "selectMode.html";
+		event.preventDefault();
+		
+	});
+	getJSON("http://localhost:3000/dictionaries", getDictionaries, errorHandler);
+	
+	$('#selectOptionForm').submit(function( event ) {
+		$('#result').hide();
+		$('#learnVocabulary').hide();
+		index = 0;
+		correct = 0;
+		incorrect = 0;
+		percentage = 0;
+		$('#numberOfCorrect').text(correct);
+		$('#numberOfIncorrect').text(incorrect);
+		$('#percentage').text(percentage);
+		var dictionary = localStorage.getItem('dictionary');
+		var level = $( "#level option:selected" ).val();
+		var category = $( "#category option:selected" ).val();
+		var option = $( "#option option:selected" ).val();
+		//$( "#myselect option:selected" ).text();
+		// display value obtained
+		if(option  === "test")
+		{
+		
+			getJSON("http://localhost:3000/dictionary/category/level/" + dictionary + "/" + category + "/" + level, generateTest, errorHandler);
+		}
+		else
+		{
+			getJSON("http://localhost:3000/dictionary/category/level/" + dictionary + "/" + category + "/" + level, showWordList, errorHandler);
+		}
+		//alert( "Handler for .submit() called." );
+		
+		event.preventDefault();
+	});
+	$('#learnVocabulary').submit(function(event){
+		var response = $('#learnVocabulary .pure-control-group input').val();
+		//alert(response);
+		if($.inArray(response, wordsData.message[index].translations) != -1){
+			correct++;
+		} else 
+		{
+			incorrect++;
+		}
+		percentage = 100*correct/(correct+incorrect);
+		$('#numberOfCorrect').text(correct);
+		$('#numberOfIncorrect').text(incorrect);
+		$('#percentage').text(percentage);
+		index++;
+		if(index < wordsData.message.length)
+		{
+			var word = wordsData.message[index].word;
+			var translations = wordsData.message[index].translations;
+			var x = '<label for="' + word + '">' + word + '</label><input id="' + word + '" type="text" placeholder="translation"><button id="nextWordBtn" type="submit" class="pure-button pure-button-primary" style="margin: 45px 0; width: auto;">Next</button>';
+			$('#learnVocabulary .pure-control-group label').text(word);
+			$('#learnVocabulary .pure-control-group input').val("");
+		}
+		else
+		{
+			$('#learnVocabulary').hide();
+			$('#selectOptionForm').show();
+		}
+		
+		event.preventDefault();
+	});
+	
+	$('#backToMenuBtn').click(function(e){
+		$('#learnVocabulary').hide();
+		$('#selectOptionForm').show();
+	});
+	$('#backToOption').click(function(e){
+		$('#result').hide();
+		$('#selectOptionForm').show();
+	});
+	$('#changeDictionary').click(function(e){
+		$('#selectDictionaryForm').show();
+		$('#selectOptionForm').hide();
+	});
+	//httpGetAsync("http://localhost:3000/dictionaries", funC);
+	
+});
+</script>
